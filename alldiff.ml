@@ -8,22 +8,22 @@ open Printf
 type node = Node of int;;
 type edge = Edge of node * node;;
 type graph = Graph of node list * node list * edge list;;
+type matching = Matching of edge list;;
 
 (* Les fonctions secondaires *)
 
-
-(* neighbor_aux : node -> graph -> node list -> node list *)
-let rec neighbor_aux x (Graph(x_set,y_set,e_set)) neighbor_set =
-	match e_set with
-	| [] -> neighbor_set
-	| Edge(s,y)::t -> if s = x
-		then neighbor_aux x (Graph (x_set,y_set,t)) (y::neighbor_set)
-		else neighbor_aux x (Graph (x_set,y_set,t)) neighbor_set
-;;
-
 (* neighbor : node -> graph -> node list 
- * neighbor x g prend le sommet x et renvoie la liste de ses voisins dans g *)
-let neighbor x g = neighbor_aux x g []
+ * neighbor x g prend le sommet x et renvoie la liste de ses voisins dans g 
+ * neighbor_aux : node -> graph -> node list -> node list *)
+let neighbors n (Graph(x,y,e)) =
+  let rec neighbors_aux x (Graph(x,y,e)) neighbors_set =
+    match e with
+    | [] -> neighbors_set
+    | Edge(s,yn)::t -> if s = n
+        then neighbors_aux n (Graph (x,y,t)) (yn::neighbors_set)
+        else neighbors_aux n (Graph (x,y,t)) neighbors_set
+  in
+  neighbors_aux n (Graph(x,y,e)) []
 ;;
 
 (* find_first_not : node list -> node list -> node 
@@ -32,13 +32,20 @@ let neighbor x g = neighbor_aux x g []
 let find_first_not l1 l2 = List.find (fun el -> (not (List.memq el l1))) l2
 ;;
 
-
 (* Les fonctions principales *)
-(*
-let rec matching_aux g mnode medge = let (x_set,y_set,e_set) = g in
-	match x_set with
-	| [] -> (mnode, medge)
-	| x::t -> let y = find_first_not mnode (neighbor x g)
-*)
+
+let matching (Graph(x,y,e)) =
+  let rec matching_aux (x,y,e) matchingNodes matchingEdges = match x with
+    | [] -> (matchingNodes, matchingEdges)
+    | elx::t -> 
+      try
+        let ely = (find_first_not matchingNodes (neighbors elx (Graph(x,y,e)))) in
+        matching_aux (t,y,e) (elx::ely::matchingNodes) ((elx,ely)::matchingEdges)     
+      with
+        Not_found -> matching_aux (t,y,e) matchingNodes matchingEdges
+  in
+  matching_aux (x,y,e) [] []
+;;
+
 
 
