@@ -1,6 +1,6 @@
 
 build:
-	ocamlc -c alldiff.ml test.ml -o test
+	ocamlc alldiff.ml test.ml -o test
 
 run:
 	./test
