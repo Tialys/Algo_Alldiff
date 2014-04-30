@@ -32,13 +32,11 @@ let neighbors_x g n =
  * neighbors_y y g prend le sommet y de Y et renvoie la liste de ses voisins 
  * dans g(X,Y,E) 
  * neighbor_y' : node -> graph -> node list -> node list *)
-let neighbors_y g n =
+let neighborsY g n =
   let rec neighbors_y' x (Graph(x,y,e)) ns =
     match e with
     | [] -> ns
-    | Edge(i,j)::t -> if j = n
-        then neighbors_y' n (Graph (x,y,t)) (j::ns)
-        else neighbors_y' n (Graph (x,y,t)) ns
+    | Edge(i,j)::t -> neighbors_y' n (Graph (x,y,t)) (if j = n then (j::ns) else ns)
   in
   neighbors_y' n g []
 ;;
@@ -58,6 +56,13 @@ let rec x_matching y es = match es with
         | (x,s)::e -> if (s = y) then x else x_matching y e
 ;;
 
+(* x_matching : node -> edge list -> node
+ * x_matching y es renvoie le sommet x couplé à l'arrette y dans la liste es *)
+let rec y_matching x es = match es with
+        | [] -> x
+        | (s,y)::e -> if (s = x) then y else y_matching x e
+;;
+
 (* remove : node -> node list -> node
  * remove e l  renvoie la liste l privée l'élément e *)
 let remove e l = 
@@ -75,6 +80,19 @@ let rec upgrade_matching matchingEdges path = match path with
   | el::t -> if (mem el matchingEdges) 
       then upgrade_matching (remove el matchingEdges) t 
       else upgrade_matching (el::matchingEdges) t
+;;
+
+let rec used x l edgeUsed = match l with
+  | [] -> edgeUsed
+  | e::t -> if (mem (e,x) edgeUsed) then used x t edgeUsed else used x t ((e,x)::edgeUsed)
+;;
+
+let rec fundkdsl y g stack visited edgeUsed matchingEdge =
+  let ny = neighborsY g y in let newEdgeUsed = used y ny edgeUsed in
+    let newStack = ((filter (fun el -> (not (mem el (visited@stack)))) ny)@stack) in
+      match newStack with
+      | [] -> edgeUsed
+      | e::t -> fundkdsl (y_matching e matchingEdge) g newStack (y::visited) newEdgeUsed matchingEdge
 ;;
 
 (*
@@ -138,4 +156,9 @@ let dfs_used g matchingEdges =
   in
   dfs_used' g matchingEdges []
 ;;
+
+
+let rec composantesconnexe x (Graph(x,y,e) as g) = match y with 
+  | [] -> []
+  | 
 *)
