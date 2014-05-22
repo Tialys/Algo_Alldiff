@@ -50,7 +50,7 @@ let (Graph(x2,y2,e2) as graphe2) = Graph([X(1);X(2);X(3);X(4)],[Y(5);Y(6);Y(7);Y
 let (Graph(x3,y3,e3) as graphe3) = Graph([X(1);X(2);X(3)],[Y(4);Y(5);Y(6)],[Edge((X(1),Y(4)));Edge((X(1),Y(5)));Edge((X(1),Y(6)));Edge((X(2),Y(4)));Edge((X(2),Y(5)));Edge((X(3),Y(6)))])
 ;;
 
-
+(*
 let (mnode1, medge1) = matching graphe1;;
 let (mnode2, medge2) = matching graphe2;;
 let (mnode3, medge3) = matching graphe3;;
@@ -98,7 +98,10 @@ print_string "\n";;
 printe_list re1;;printe_list ve1;;
 printe_list re2;;printe_list ve2;;
 printe_list re3;;printe_list ve3;;
-print_string "\n";;print_string "\n";;
+print_string "\n";;print_string "\n";;*)
+
+
+
 (*
 printn_list (listToNodeY (filter (fun el -> (not (mem el [Y(5);Y(6);Y(8);Y(9)]))) [Y(5);Y(6);Y(7);Y(8);Y(9)]) []);;
 
