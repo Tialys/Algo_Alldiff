@@ -18,18 +18,11 @@ type matching = Matching of edge list;;
  * neighbors_x x g prend le sommet x de X et renvoie la liste de ses voisins 
  * dans g(X,Y,E) 
  * neighbor_x' : node -> graph -> node list -> node list *)
-(*let neighborsX g n =
-  let rec neighborsX' n (Graph(x,y,e)) ns =
-    match e with
-    | [] -> ns
-    | Edge(i,j)::t -> neighborsX' n (Graph (x,y,t)) (if i = n then (j::ns) else ns)
-  in
-  neighborsX' n g []
-;;
-*)
+
 (* demote : edge list -> (nodeX, nodeY) list *)
 let demote es = map (fun (Edge(n,m)) -> (n,m)) es
 ;;
+
 (* promote : (nodeX, nodeY) list -> edge list *)
 let promote es = map (fun ((n,m)) -> Edge(n,m)) es
 ;;
@@ -44,16 +37,6 @@ let neighborsY (Graph(_,_,e)) n = map fst (filter (fun (u,v) -> v = n) (demote e
  * neighbors_y y g prend le sommet y de Y et renvoie la liste de ses voisins 
  * dans g(X,Y,E) 
  * neighbor_y' : node -> graph -> node list -> node list *)
-(*let neighborsY g n =
-  let rec neighborsY' n (Graph(x,y,e)) ns =
-    match e with
-    | [] -> ns
-    | Edge(i,j)::t -> neighborsY' n (Graph (x,y,t)) (if j = n then (i::ns) else ns)
-  in
-  neighborsY' n g []
-;;
-*)
-
 (*
 (* remove_edge : node -> edge list -> edge list
  * remove_edge n es enlève l'arrete (n,y) et l'arrette (x,y) de la liste es *)
@@ -187,6 +170,18 @@ let intersection (l1x,l1y) (l2x,l2y) = ( l1x |^| l2x, l1y |^| l2y)
 
 (* matching : graph -> (node list * edge list)
  * matching g renvoie un couplage du graphe g *)
+
+let matchingT' g n (Matching(es) as m) = 
+  try 
+    let (xNodes,yNodes) = split (demote es) in
+    let ely = find (fun el -> not (mem el yNodes)) (neighborsX g n) in
+    (Matching((Edge(n,ely))::es))
+  with
+    Not_found -> m
+;;
+
+let matchingT (Graph(x,_,_) as g) m = fold_right (fun el1 el2 -> matchingT' g el1 el2) x m;;
+
 let matching g =
   let rec matching' (Graph(x,y,e) as g) (Matching(es) as m) =
     match x with
