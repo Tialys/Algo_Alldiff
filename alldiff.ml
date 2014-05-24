@@ -1,5 +1,3 @@
-(* Voici les fonctions utilisées pour l'algorithme d'arc consistance pour les
- * contraintes alldiff *)
 
 open List
 
@@ -14,80 +12,124 @@ type matching = Matching of edge list;;
 
 
 
-(* neighbors_x : node -> graph -> node list 
- * neighbors_x x g prend le sommet x de X et renvoie la liste de ses voisins 
- * dans g(X,Y,E) 
- * neighbor_x' : node -> graph -> node list -> node list *)
-
 (* demote : edge list -> (nodeX, nodeY) list *)
 let demote es = map (fun (Edge(n,m)) -> (n,m)) es
 ;;
 
 (* promote : (nodeX, nodeY) list -> edge list *)
-let promote es = map (fun ((n,m)) -> Edge(n,m)) es
+let promote es = map (fun (n,m) -> Edge(n,m)) es
 ;;
 
-let neighborsX (Graph(_,_,e)) n = map snd (filter (fun (u,v) -> u = n) (demote e))
+let splitMatching (Matching(es)) = split (demote es)
 ;;
 
-let neighborsY (Graph(_,_,e)) n = map fst (filter (fun (u,v) -> v = n) (demote e))
+let neighborsInY (Graph(_,_,e)) n = map snd (filter (fun (u,v) -> u = n) (demote e))
 ;;
 
-(* neighbors_y : node -> graph -> node list 
- * neighbors_y y g prend le sommet y de Y et renvoie la liste de ses voisins 
- * dans g(X,Y,E) 
- * neighbor_y' : node -> graph -> node list -> node list *)
-(*
-(* remove_edge : node -> edge list -> edge list
- * remove_edge n es enlève l'arrete (n,y) et l'arrette (x,y) de la liste es *)
-let rec removeEdge n es = match es with
-  | [] -> []
-  | (x,y)::es -> if n = x then removeEdge y es else 
-    if n = y then es else removeEdge n es
+let neighborsInX (Graph(_,_,e)) n = map fst (filter (fun (u,v) -> v = n) (demote e))
 ;;
-*)
 
-(* x_matching : node -> edge list -> node
- * x_matching y es renvoie le sommet x couplé à l'arrette y dans la liste es *)
+(* matched : matching -> node -> node
+ * matched renvoie le sommet couplé s'il existe *)
 let matched (Matching(es)) n = 
   match n with
   | NodeX(x) -> NodeY(snd (find (fun (u,v) -> u = x) (demote es)))
   | NodeY(y) -> NodeX(fst (find (fun (u,v) -> v = y) (demote es)))
 ;;
 
-
-  
-(* remove : node -> node list -> node
- * remove e l  renvoie la liste l privée l'élément e *)
-let remove e l = filter (fun x -> x != e) l
+let add (Matching(es)) e = Matching(e::es) 
 ;;
 
+(* (|--) : 'a list -> 'a list -> 'a list 
+ * a |-- b est la différence de a par b *)
 let (|--) baseList removalList = filter (fun x -> not (mem x removalList)) baseList;;
 
+(* (|^|) : 'a list -> 'a list -> 'a list 
+ * a |^| b est l'intersection de a et b *)
 let (|^|) l1 l2 = filter (fun el -> (mem el l1)) l2
 ;;
-(* upgrade_matching : edge list -> edge list -> edge list
- * upgrade_matching m path *) 
-let augment (Matching(es)) path = Matching((es |-- (es |^| path)) @ (path |-- (es |^| path)))
+
+(* symDiff : 'a list -> 'a list -> 'a list
+ * symDiff renvoie la différence symétrique de a et b *) 
+let symDiff a b = (a |-- b) @ (b |-- a )
+;;
+
+(* augment : matching -> edge list -> matching 
+ * augment renvoie le couplage correspondant à la différence symétrique
+ * entre le couplage et la chaîne donnés ce qui correspond à un couplage 
+ * augmenté dans le cas d'une chaîne augmentante *)
+let augment (Matching(es)) path = Matching(symDiff es path)
+;;
+
+(* findAvailableEdge : graph -> nodeX -> matching -> matching 
+ * findAvailableEdge renvoie le couplage augmenté d'une nouvelle arête si elle existe *)
+let findAvailableEdge g x m =
+  try 
+    let (_, matchedYs) = splitMatching m in
+    let y = find (fun n -> not (mem n matchedYs)) (neighborsInY g x) in
+      add m (Edge(x,y))
+  with
+    Not_found -> m
+;;
+
+(* matching : graph -> matching
+ * matching renvoie un couplage du graphe *)
+let matching g =
+  let matching' (Graph(xs,_,_) as g) m =
+    fold_right (findAvailableEdge g) xs m
+  in
+  matching' g (Matching([]))
+;;
+
+(* augmentingPath : graph -> matching -> nodeX -> edge list
+ * augmentingPath renvoie une chaîne augmentante partant du noeud donné si elle existe *)
+let augmentingPath g m root =
+  let rec augmentingPath' g m root visited =
+    match (neighborsInY g root) |-- visited with
+    | [] -> [] 
+    | y::t -> 
+      let (_, yNodes) = splitMatching m in
+      if (mem y yNodes)
+        then let (NodeX(x)) = matched m (NodeY(y)) in
+          try
+            (Edge(x,y))::(Edge(root,y))::(augmentingPath' g m x (y::visited))
+          with
+            Not_found -> augmentingPath' g m x (y::visited)
+        else (Edge(root,y))::[]
+  in
+  augmentingPath' g m root []
+;;
+
+(* useAugmentingPath : graph -> nodeX -> matching -> matching
+ * useAugmentingPath renvoie le couplage augmenté d'une chaîne augmentante si elle existe *)
+let useAugmentingPath g x m = augment m (augmentingPath g m x)
+;;
+
+(* maximumMatching : graph -> matching -> matching
+ * maximumMatching transforme un couplage donné en un couplage de cardinal maximum *)
+let maximumMatching (Graph(xs,_,_) as g) m =
+  let unsaturatedXs =  xs |-- (fst (splitMatching m)) in
+  fold_right (useAugmentingPath g) unsaturatedXs m 
+;;
+
+let cut g n = 
+  match n with
+  | NodeX(x) -> map (fun y -> Edge(x,y)) (neighborsInY g x)
+  | NodeY(y) -> map (fun x -> Edge(x,y)) (neighborsInX g y)
+;;
+
+(* dfsEdges' : nodeY -> graph -> matching -> nodeX list -> nodeX list -> edges list -> edges list *)
+let rec dfsEdges' (NodeY(r) as root) g m stack visitedXs edges =
+  let seen = stack @ visitedXs in
+  let stack' = ((neighborsInX g r) |-- seen) @ stack in
+    match stack' with
+    | [] -> (cut g root) @ edges
+    | x::xs -> let y = matched m (NodeX(x)) in
+        dfsEdges' y g m xs (x::visitedXs) ((cut g root) @ edges)
 ;;
 
 (*
-let rec edgeList x l edgeUsed = match l with
-  | [] -> edgeUsed
-  | e::t -> if (mem (e,x) edgeUsed) then edgeList x t edgeUsed else edgeList x t ((e,x)::edgeUsed)
-;;
-*)
-(*
-
-let rec dfsEdges' root g m stack (xNodes, yNodes) edges =
-  let explored = stack@xNodes in
-    let stack' = (filter (fun x -> (not (mem x explored))) (neighborsY g root))@stack in
-      match stack' with
-      | [] -> edges
-      | x::t -> let y = matched m (NodeX(x)) in
-          dfsEdges' y g m t (x::xNodes, y::yNodes) ((x, y)::(n, root)::edges)
-;;*)
-(*
+(* dfsEdgesX : nodeX -> graph -> matching -> edges list *)
 let dfsEdgesX x g m = 
     let y' = matched x m in
     dfsEdges' y' g m [] ([x], [y']) [(x, y')]
@@ -100,7 +142,7 @@ let rec dfsEdgesl xs g m edges =
       dfsEdgesl t g m (edges'@edges)
 ;;
 
-let dfsEdges y g m = let ny = neighborsY g y in
+let dfsEdges y g m = let ny = neighborsInX g y in
   dfsEdgesl ny g m (edgeList y ny [])
 ;;
 
@@ -115,7 +157,7 @@ let dfsUsed l g m =
 let rec dfs' y g m stack (visitedX, visitedY) =
   try
     let notX = xMatching y m in
-    let newStack = (filter (fun el -> (not (mem el (notX::stack@visitedX)))) (neighborsY g y))@stack in
+    let newStack = (filter (fun el -> (not (mem el (notX::stack@visitedX)))) (neighborsInX g y))@stack in
       match newStack with
       | [] -> (visitedX, visitedY)
       | el::t -> let newY = yMatching el m in
@@ -129,7 +171,7 @@ let rec dfs' y g m stack (visitedX, visitedY) =
 let rec revDfs' x g m stack (visitedX, visitedY) =
   try
     let notY = yMatching x m in
-    let newStack = (filter (fun el -> (not (mem el (notY::stack@visitedY)))) (neighborsX g x))@stack in
+    let newStack = (filter (fun el -> (not (mem el (notY::stack@visitedY)))) (neighborsInY g x))@stack in
       match newStack with
       | [] -> (visitedX, visitedY)
       | el::t -> let newX = xMatching el m in
@@ -167,79 +209,6 @@ let intersection (l1x,l1y) (l2x,l2y) = ( l1x |^| l2x, l1y |^| l2y)
 ;;
 
 
-
-(* matching : graph -> (node list * edge list)
- * matching g renvoie un couplage du graphe g *)
-
-let matchingT' g n (Matching(es) as m) = 
-  try 
-    let (xNodes,yNodes) = split (demote es) in
-    let ely = find (fun el -> not (mem el yNodes)) (neighborsX g n) in
-    (Matching((Edge(n,ely))::es))
-  with
-    Not_found -> m
-;;
-
-let matchingT (Graph(x,_,_) as g) m = fold_right (fun el1 el2 -> matchingT' g el1 el2) x m;;
-
-let matching g =
-  let rec matching' (Graph(x,y,e) as g) (Matching(es) as m) =
-    match x with
-    | [] -> m
-    | elx::t -> 
-      try
-        let (xNodes,yNodes) = split (demote es) in
-        let ely = find (fun el -> not (mem el yNodes)) (neighborsX g elx) in
-        matching' (Graph(t,y,e)) (Matching((Edge(elx,ely))::es)) 
-      with
-        Not_found -> matching' (Graph(t,y,e)) m
-  in
-  matching' g (Matching([]))
-;;
-
-(* augmentingPath : graph -> matching -> nodeX -> edge list *)
-let augmentingPath g m x =
-  let rec augmentingPath' g (Matching(e) as m) x visited =
-    match filter (fun el -> (not (mem el visited))) (neighborsX g x) with
-    | [] -> [] 
-    | y::t -> 
-      let (xNodes,yNodes) = split (demote e) in
-      if (mem y yNodes)
-        then let (NodeX(x')) = matched m (NodeY(y)) in
-          try
-            (Edge(x',y))::(Edge(x,y))::(augmentingPath' g m x' (y::visited))
-          with
-            Not_found -> augmentingPath' g m x' (y::visited)
-        else (Edge(x,y))::[]
-  in
-  augmentingPath' g m x []
-;;
-
-(* matching_max : graph -> edge list -> edge list
- * matching_max g m renvoit le couplage max du graphe g *)
-let maximumMatching (Graph(x,_,_) as g) (Matching(es) as m) =
-  let (xNodes, yNodes) = split (demote es) in 
-    let l = filter (fun el -> (not (mem el xNodes))) x in
-      let rec maximumMatching' m l =
-        match l with
-        | [] -> m
-        | el::xs -> try 
-            let path = augmentingPath g m el in 
-              maximumMatching' (augment m path) xs
-            with
-              Not_found -> maximumMatching' m xs
-      in
-      maximumMatching' m l
-;;
-
-let nodeComponentsX l =
-  let rec nodeComponentsX' l acc = match l with
-    | [] -> acc
-    | (lx,ly)::t -> nodeComponentsX' t (lx@acc)
-  in
-  nodeComponentsX' l []
-;;
-
 let nodeComponentsY l =
   let rec nodeComponentsY' l acc = match l with
     | [] -> acc
@@ -272,7 +241,7 @@ let componentEdges component g =
     match component with
     | ([],_) -> edges
     | (_,[]) -> edges
-    | (e::t,l2) -> let l = filter (fun el -> (mem el (neighborsX g e))) l2 in
+    | (e::t,l2) -> let l = filter (fun el -> (mem el (neighborsInY g e))) l2 in
         componentEdges' (t,l2) g ((edgesNode e l)@edges)
   in
   componentEdges' component g []
