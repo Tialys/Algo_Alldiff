@@ -27,9 +27,7 @@ let rec printe_list = function
 	| (X(x),Y(y))::l -> printf "(%d,%d)" x y; printe_list l
 ;;
 
-let rec printe2_list = function
-        | [] -> print_string "\n"
-        | (Edge(X(x),Y(y)))::t -> printf "(%d,%d)" x y; printe2_list t
+let printm (Matching(es)) = printe_list es
 ;;
 
 let printn2_list node = match node with
@@ -38,37 +36,30 @@ let printn2_list node = match node with
 
 let rec printComp comp = match comp with 
 	| [] -> ()
-	| l::tl -> printn2_list (toNode l); printComp tl
+	| l::tl -> printe_list l; printComp tl
 ;;
 
-let (Graph(x1,y1,e1) as graphe1) = Graph([X(1);X(2);X(3);X(4);X(5);X(6)],[Y(7);Y(8);Y(9);Y(10);Y(11);Y(12);Y(13)],[Edge((X(1),Y(7)));Edge((X(1),Y(8)));Edge((X(2),Y(8)));Edge((X(2),Y(9)));Edge((X(3),Y(7)));Edge((X(3),Y(9)));Edge((X(4),Y(8)));Edge((X(4),Y(10)));Edge((X(5),Y(9)));Edge((X(5),Y(10)));Edge((X(5),Y(11)));Edge((X(5),Y(12)));Edge((X(6),Y(12)));Edge((X(6),Y(13)))])
+let (Graph(x1,y1,e1) as graphe1) = Graph([X(1);X(2);X(3);X(4);X(5);X(6)],[Y(7);Y(8);Y(9);Y(10);Y(11);Y(12);Y(13)],[(X(1),Y(7));(X(1),Y(8));(X(2),Y(8));(X(2),Y(9));(X(3),Y(7));(X(3),Y(9));(X(4),Y(8));(X(4),Y(10));(X(5),Y(9));(X(5),Y(10));(X(5),Y(11));(X(5),Y(12));(X(6),Y(12));(X(6),Y(13))])
 
 
-let (Graph(x2,y2,e2) as graphe2) = Graph([X(1);X(2);X(3);X(4)],[Y(5);Y(6);Y(7);Y(8);Y(9)], [Edge((X(1),Y(5)));Edge((X(1),Y(6)));Edge((X(2),Y(5)));Edge((X(2),Y(6)));Edge((X(3),Y(6)));Edge((X(3),Y(7)));Edge((X(4),Y(7)));Edge((X(4),Y(8)));Edge((X(3),Y(9)))])
+let (Graph(x2,y2,e2) as graphe2) = Graph([X(1);X(2);X(3);X(4)],[Y(5);Y(6);Y(7);Y(8);Y(9)], [(X(1),Y(5));(X(1),Y(6));(X(2),Y(5));(X(2),Y(6));(X(3),Y(6));(X(3),Y(7));(X(4),Y(7));(X(4),Y(8));(X(3),Y(9))])
 ;;
 
-let (Graph(x3,y3,e3) as graphe3) = Graph([X(1);X(2);X(3)],[Y(4);Y(5);Y(6)],[Edge((X(1),Y(4)));Edge((X(1),Y(5)));Edge((X(1),Y(6)));Edge((X(2),Y(4)));Edge((X(2),Y(5)));Edge((X(3),Y(6)))])
+let (Graph(x3,y3,e3) as graphe3) = Graph([X(1);X(2);X(3)],[Y(4);Y(5);Y(6)],[(X(1),Y(4));(X(1),Y(5));(X(1),Y(6));(X(2),Y(4));(X(2),Y(5));(X(3),Y(6))])
 ;;
 
-(*
-let (mnode1, medge1) = matching graphe1;;
-let (mnode2, medge2) = matching graphe2;;
-let (mnode3, medge3) = matching graphe3;;
 
+let m1 = matching graphe1;;
+let m2 = matching graphe2;;
+let m3 = matching graphe3;;
 
-let (mnodex3,mnodey3) = split medge3;;
+let medge1Max = maximumMatching graphe1 m1;;
+let medge2Max = maximumMatching graphe2 m2;;
+let medge3Max = maximumMatching graphe3 m3;;
 
-printe2_list e1;;
-printe2_list e2;;
-printe2_list e3;;
-
-let medge1Max = matchingMax graphe1 medge1;;
-let medge2Max = matchingMax graphe2 medge2;;
-let medge3Max = matchingMax graphe3 medge3;;
-
-printe_list medge1Max;;
-printe_list medge2Max;;
-printe_list medge3Max;;
+printm medge1Max;;
+printm medge2Max;;
+printm medge3Max;;
 
 let scc1 = strongComponents graphe1 medge1Max;;
 let scc2 = strongComponents graphe2 medge2Max;;
@@ -78,19 +69,7 @@ printComp scc1;print_string "\n";;
 printComp scc2;print_string "\n";;
 printComp scc3;print_string "\n";;
 
-let ce1 = strongComponentsEdges graphe1 scc1;;
-let ce2 = strongComponentsEdges graphe2 scc2;;
-let ce3 = strongComponentsEdges graphe3 scc3;;
-
-let used1 = ((dfsUsed (filter (fun el -> (not (mem el [Y(7);Y(8);Y(9);Y(10);Y(12);Y(13)]))) [Y(7);Y(8);Y(9);Y(10);Y(11);Y(12);Y(13)]) graphe1 medge1Max) @ ce1);;
-let used2 = ((dfsUsed (filter (fun el -> (not (mem el [Y(5);Y(6);Y(8);Y(9)]))) [Y(5);Y(6);Y(7);Y(8);Y(9)]) graphe2 medge2Max) @ ce2);;
-let used3 = ((dfsUsed (filter (fun el -> (not (mem el [Y(4);Y(5);Y(6)]))) [Y(4);Y(5);Y(6)]) graphe3 medge3Max) @ ce3);;
-
-printe_list used1;;
-printe_list used2;;
-printe_list used3;;
-
-
+(*
 let (re1,ve1) = allDiff graphe1;;
 let (re2,ve2) = allDiff graphe2;;
 let (re3,ve3) = allDiff graphe3;;
@@ -98,10 +77,8 @@ print_string "\n";;
 printe_list re1;;printe_list ve1;;
 printe_list re2;;printe_list ve2;;
 printe_list re3;;printe_list ve3;;
-print_string "\n";;print_string "\n";;*)
-
-
-
+print_string "\n";;print_string "\n";;
+*)
 (*
 printn_list (listToNodeY (filter (fun el -> (not (mem el [Y(5);Y(6);Y(8);Y(9)]))) [Y(5);Y(6);Y(7);Y(8);Y(9)]) []);;
 

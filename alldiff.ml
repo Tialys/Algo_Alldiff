@@ -6,37 +6,35 @@ open List
 type nodeX = X of int;;
 type nodeY = Y of int;;
 type node = NodeX of nodeX | NodeY of nodeY;;
-type edge = Edge of nodeX * nodeY;;
+type edge = nodeX * nodeY;;
 type graph = Graph of nodeX list * nodeY list * edge list;;
 type matching = Matching of edge list;;
 
 
-
-(* demote : edge list -> (nodeX, nodeY) list *)
-let demote es = map (fun (Edge(n,m)) -> (n,m)) es
+let nodey ys = map (fun y -> NodeY(y)) ys
 ;;
 
-(* promote : (nodeX, nodeY) list -> edge list *)
-let promote es = map (fun (n,m) -> Edge(n,m)) es
+(* splitMatching : matching -> (nodeX list * nodeY list) *)
+let splitMatching (Matching(es)) = split es
 ;;
 
-let splitMatching (Matching(es)) = split (demote es)
+(* neighbors graph -> node -> node list *)
+let neighborsInX (Graph(_,_,e)) y = map fst (filter (fun (u,v) -> v = y) e)
 ;;
 
-let neighborsInY (Graph(_,_,e)) n = map snd (filter (fun (u,v) -> u = n) (demote e))
+let neighborsInY (Graph(_,_,e)) x = map snd (filter (fun (u,v) -> u = x) e)
 ;;
 
-let neighborsInX (Graph(_,_,e)) n = map fst (filter (fun (u,v) -> v = n) (demote e))
-;;
 
 (* matched : matching -> node -> node
  * matched renvoie le sommet couplé s'il existe *)
 let matched (Matching(es)) n = 
   match n with
-  | NodeX(x) -> NodeY(snd (find (fun (u,v) -> u = x) (demote es)))
-  | NodeY(y) -> NodeX(fst (find (fun (u,v) -> v = y) (demote es)))
+  | NodeX(x) -> NodeY(snd (find (fun (u,v) -> u = x) es))
+  | NodeY(y) -> NodeX(fst (find (fun (u,v) -> v = y) es))
 ;;
 
+(* add : matching -> edge -> matching *)
 let add (Matching(es)) e = Matching(e::es) 
 ;;
 
@@ -67,7 +65,7 @@ let findAvailableEdge g x m =
   try 
     let (_, matchedYs) = splitMatching m in
     let y = find (fun n -> not (mem n matchedYs)) (neighborsInY g x) in
-      add m (Edge(x,y))
+      add m (x,y)
   with
     Not_found -> m
 ;;
@@ -85,17 +83,17 @@ let matching g =
  * augmentingPath renvoie une chaîne augmentante partant du noeud donné si elle existe *)
 let augmentingPath g m root =
   let rec augmentingPath' g m root visited =
+  let (_, yNodes) = splitMatching m in
     match (neighborsInY g root) |-- visited with
-    | [] -> [] 
+    | [] -> raise Not_found
     | y::t -> 
-      let (_, yNodes) = splitMatching m in
-      if (mem y yNodes)
+        if (mem y yNodes)
         then let (NodeX(x)) = matched m (NodeY(y)) in
           try
-            (Edge(x,y))::(Edge(root,y))::(augmentingPath' g m x (y::visited))
+            (x,y)::(root,y)::(augmentingPath' g m x (y::visited))
           with
-            Not_found -> augmentingPath' g m x (y::visited)
-        else (Edge(root,y))::[]
+            Not_found -> augmentingPath' g m root (y::visited)
+        else (root,y)::[]
   in
   augmentingPath' g m root []
 ;;
@@ -112,104 +110,113 @@ let maximumMatching (Graph(xs,_,_) as g) m =
   fold_right (useAugmentingPath g) unsaturatedXs m 
 ;;
 
+(* cut : graph -> node -> edge list 
+ * cut renvoie la coupe du sommet donné *)
 let cut g n = 
   match n with
-  | NodeX(x) -> map (fun y -> Edge(x,y)) (neighborsInY g x)
-  | NodeY(y) -> map (fun x -> Edge(x,y)) (neighborsInX g y)
+  | NodeX(x) -> map (fun y -> (x,y)) (neighborsInY g x)
+  | NodeY(y) -> map (fun x -> (x,y)) (neighborsInX g y)
 ;;
 
-(* dfsEdges' : nodeY -> graph -> matching -> nodeX list -> nodeX list -> edges list -> edges list *)
-let rec dfsEdges' (NodeY(r) as root) g m stack visitedXs edges =
+(* dfsEdges' : nodeY -> graph -> matching -> nodeX list -> nodeX list -> edges list -> edges list 
+ * dfsEdges' est une fonction auxilière *)
+let rec dfsEdges' g m (NodeY(r) as root) stack visitedXs edges =
   let seen = stack @ visitedXs in
   let stack' = ((neighborsInX g r) |-- seen) @ stack in
     match stack' with
     | [] -> (cut g root) @ edges
     | x::xs -> let y = matched m (NodeX(x)) in
-        dfsEdges' y g m xs (x::visitedXs) ((cut g root) @ edges)
+        dfsEdges' g m y xs (x::visitedXs) ((cut g root) @ edges)
 ;;
 
-(*
-(* dfsEdgesX : nodeX -> graph -> matching -> edges list *)
-let dfsEdgesX x g m = 
-    let y' = matched x m in
-    dfsEdges' y' g m [] ([x], [y']) [(x, y')]
+(* unsaturedYDfs : graph -> matching -> nodeY -> edge list 
+ * unsaturedYDfs renvoie la liste des arêtes atteint par le parcours partant du sommet donné 
+ * avec l'orientation donnée par le couplage donné *)
+let dfsEdges g m n =
+  match n with
+  | NodeX(x) -> let (NodeY(y)) = matched m (NodeX(x)) in
+      dfsEdges' g m (NodeY(y)) [] [x] [(x,y)]
+  | NodeY(y) -> 
+    try
+      let (NodeX(x)) = matched m (NodeY(y)) in
+      dfsEdges' g m (NodeY(y)) [] [x] [(x,y)]
+    with
+      Not_found -> dfsEdges' g m (NodeY(y)) [] [] []
 ;;
 
-let rec dfsEdgesl xs g m edges =
-  match xs with
-  | [] -> edges
-  | x::t -> let edges' = dfsEdgesX x g m in
-      dfsEdgesl t g m (edges'@edges)
+
+(* revDfsEdges' : graph -> matching -> nodeX -> nodeY list -> nodeY list -> edge list -> edge list *)
+let rec revDfsEdges' g m (NodeX(r) as root) stack visitedYs edges =
+  let seen = stack @ visitedYs in
+  let stack' = ((neighborsInY g r) |-- seen) @ stack in
+    match stack' with
+    | [] -> (cut g root) @ edges
+    | y::ys -> 
+      try
+        let x = matched m (NodeY(y)) in
+        revDfsEdges' g m x ys (y::visitedYs) ((cut g root) @ edges)
+      with
+        Not_found -> edges
 ;;
 
-let dfsEdges y g m = let ny = neighborsInX g y in
-  dfsEdgesl ny g m (edgeList y ny [])
+(* revDfsEdges : graph -> matching -> node -> edge list *)
+let revDfsEdges g m n =
+  match n with
+  | NodeX(x) -> revDfsEdges' g m (NodeX(x)) [] [] []
+  | NodeY(y) -> 
+      try
+        let (NodeX(x)) = matched m (NodeY(y)) in
+        revDfsEdges' g m (NodeX(x)) [] [y] [(x,y)]
+      with
+        Not_found -> []
 ;;
 
-let dfsUsed l g m =
-  let rec dfsUsed' l g m edges = match l with
-    | [] -> edges
-    | y::t -> dfsUsed' t g m ((dfsEdges y g m)@edges)
+(* used : graph -> matching -> edge list *)
+let used (Graph(_,ys,_) as g) m = 
+  let unsaturatedYs = ys |-- (snd (splitMatching m)) in
+  map (dfsEdges g m) (map (fun y -> NodeY(y)) unsaturatedYs) 
+;;
+
+(* uniq : 'a list -> 'a list 
+ * renvoie la liste sans doublon *)
+let uniq baseList = fold_right 
+  (fun x uniqList -> if (mem x uniqList) then uniqList else (x::uniqList)) 
+  baseList []
+;;
+
+(* uniqs : 'a list list -> 'a list list
+ * renvoie la liste de liste sans doublon (l'ordre dans la liste n'est pas important) *)
+let uniqs baseList =
+  let rec uniqs' baseList aux = 
+    match baseList with 
+    | [] -> aux 
+    | l::ls -> uniqs' (uniq (map (fun uniqList -> (|--) l uniqList) ls)) (l::aux)
   in
-  dfsUsed' l g m []
+  uniqs' baseList  []
 ;;
 
-let rec dfs' y g m stack (visitedX, visitedY) =
-  try
-    let notX = xMatching y m in
-    let newStack = (filter (fun el -> (not (mem el (notX::stack@visitedX)))) (neighborsInX g y))@stack in
-      match newStack with
-      | [] -> (visitedX, visitedY)
-      | el::t -> let newY = yMatching el m in
-          dfs' newY g m t 
-          (if (mem newY visitedY) then (el::visitedX, visitedY) 
-          else (el::visitedX, newY::visitedY))
-  with
-    Not_found -> (visitedX, visitedY)
+(* memEdges : node -> edge list -> bool *)
+let memEdges n es = 
+  match n with
+  | NodeX(x) -> mem x (fst (split es))
+  | NodeY(y) -> mem y (snd (split es))
 ;;
 
-let rec revDfs' x g m stack (visitedX, visitedY) =
-  try
-    let notY = yMatching x m in
-    let newStack = (filter (fun el -> (not (mem el (notY::stack@visitedY)))) (neighborsInY g x))@stack in
-      match newStack with
-      | [] -> (visitedX, visitedY)
-      | el::t -> let newX = xMatching el m in
-          revDfs' newX g m t 
-          (if (mem newX visitedX) then (visitedX, el::visitedY) 
-          else (newX::visitedX, el::visitedY))
-  with
-    Not_found -> (visitedX, visitedY)
+(* strongComponent : graph -> matching -> node -> edge list *)
+let strongComponent g m n = uniq ((dfsEdges g m n) |^| (revDfsEdges g m n))
 ;;
 
-
-
-let dfsY y g m = dfs' y g m [] ([], [y])
+(* strongComponents : graph -> matching -> edge list *)
+let strongComponents (Graph(xs,ys,_) as g) m =
+  let ns = (map (fun x -> NodeX(x)) xs) @ (map (fun y -> NodeY(y)) ys) in 
+  uniqs (map (strongComponent g m) ns)
 ;;
-
-let revDfsX x g m = revDfs' x g m [] ([x], [])
-;;
-
-let dfsX x g m = try
-    let newY = yMatching x m in
-    dfs' newY g m [] ([x], [newY])
-  with
-    Not_found -> ([x], [])
-;;
-
-let revDfsY y g m = try
-    let newX = xMatching y m in
-    revDfs' newX g m [] ([newX], [y])
-  with
-    Not_found -> ([], [y])
-;;
-*)
 
 let intersection (l1x,l1y) (l2x,l2y) = ( l1x |^| l2x, l1y |^| l2y)
 ;;
 
 
-let nodeComponentsY l =
+let nodeComponents l =
   let rec nodeComponentsY' l acc = match l with
     | [] -> acc
     | (lx,ly)::t -> nodeComponentsY' t (ly@acc)
