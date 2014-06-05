@@ -27,8 +27,11 @@ let rec printe_list = function
 	| (X(x),Y(y))::l -> printf "(%d,%d)" x y; printe_list l
 ;;
 
+<<<<<<< HEAD
 let printeg (Graph(_,_,e)) = printe_list e;; 
 
+=======
+>>>>>>> 741f7af9987c0ece868970ffd0ec9c94b262c9f8
 let printm (Matching(es)) = printe_list es
 ;;
 
@@ -41,6 +44,7 @@ let rec printComp comp = match comp with
 	| l::tl -> printe_list l; printComp tl
 ;;
 
+<<<<<<< HEAD
 let (Graph(x1,y1,e1) as graphe1) = Graph([X(1);X(2);X(3);X(4);X(5);X(6)],[Y(1);Y(2);Y(3);Y(4);Y(5);Y(6);Y(7)],[(X(1),Y(1));(X(1),Y(2));(X(2),Y(2));(X(2),Y(3));(X(3),Y(1));(X(3),Y(3));(X(4),Y(2));(X(4),Y(4));(X(5),Y(3));(X(5),Y(4));(X(5),Y(5));(X(5),Y(6));(X(6),Y(6));(X(6),Y(7))])
 
 
@@ -48,6 +52,15 @@ let (Graph(x2,y2,e2) as graphe2) = Graph([X(1);X(2);X(3);X(4)],[Y(5);Y(6);Y(7);Y
 ;;
 
 let (Graph(x3,y3,e3) as graphe3) = Graph([X(1);X(2);X(3)],[Y(4);Y(5);Y(6)],[(X(1),Y(1));(X(1),Y(2));(X(1),Y(3));(X(2),Y(1));(X(2),Y(3));(X(3),Y(2))])
+=======
+let (Graph(x1,y1,e1) as graphe1) = Graph([X(1);X(2);X(3);X(4);X(5);X(6)],[Y(7);Y(8);Y(9);Y(10);Y(11);Y(12);Y(13)],[(X(1),Y(7));(X(1),Y(8));(X(2),Y(8));(X(2),Y(9));(X(3),Y(7));(X(3),Y(9));(X(4),Y(8));(X(4),Y(10));(X(5),Y(9));(X(5),Y(10));(X(5),Y(11));(X(5),Y(12));(X(6),Y(12));(X(6),Y(13))])
+
+
+let (Graph(x2,y2,e2) as graphe2) = Graph([X(1);X(2);X(3);X(4)],[Y(5);Y(6);Y(7);Y(8);Y(9)], [(X(1),Y(5));(X(1),Y(6));(X(2),Y(5));(X(2),Y(6));(X(3),Y(6));(X(3),Y(7));(X(4),Y(7));(X(4),Y(8));(X(3),Y(9))])
+;;
+
+let (Graph(x3,y3,e3) as graphe3) = Graph([X(1);X(2);X(3)],[Y(4);Y(5);Y(6)],[(X(1),Y(4));(X(1),Y(5));(X(1),Y(6));(X(2),Y(4));(X(2),Y(5));(X(3),Y(6))])
+>>>>>>> 741f7af9987c0ece868970ffd0ec9c94b262c9f8
 ;;
 
 
@@ -67,17 +80,24 @@ let scc1 = strongComponents graphe1 medge1Max;;
 let scc2 = strongComponents graphe2 medge2Max;;
 let scc3 = strongComponents graphe3 medge3Max;;
 
+<<<<<<< HEAD
 let dfs3 = dfsEdges graphe3 medge3Max (NodeX(X(3)));;
 let revDfs3 = revDfsEdges graphe3 medge3Max (NodeX(X(3)));;
 
 
 printe_list dfs3;;
 printe_list revDfs3;;
+=======
+>>>>>>> 741f7af9987c0ece868970ffd0ec9c94b262c9f8
 printComp scc1;print_string "\n";;
 printComp scc2;print_string "\n";;
 printComp scc3;print_string "\n";;
 
+<<<<<<< HEAD
 
+=======
+(*
+>>>>>>> 741f7af9987c0ece868970ffd0ec9c94b262c9f8
 let (re1,ve1) = allDiff graphe1;;
 let (re2,ve2) = allDiff graphe2;;
 let (re3,ve3) = allDiff graphe3;;
@@ -86,6 +106,7 @@ printe_list re1;;printe_list ve1;;
 printe_list re2;;printe_list ve2;;
 printe_list re3;;printe_list ve3;;
 print_string "\n";;print_string "\n";;
+<<<<<<< HEAD
 
 
 
@@ -444,6 +465,10 @@ let (Matching(emMax)) = maximumMatching g3' (Matching(em))
 let (re3',ve3') = allDiff g3';;
 
 
+=======
+*)
+(*
+>>>>>>> 741f7af9987c0ece868970ffd0ec9c94b262c9f8
 printn_list (listToNodeY (filter (fun el -> (not (mem el [Y(5);Y(6);Y(8);Y(9)]))) [Y(5);Y(6);Y(7);Y(8);Y(9)]) []);;
 
 let used2 = ((dfsUsed (filter (fun el -> (not (mem el [Y(5);Y(6);Y(8);Y(9)]))) [Y(5);Y(6);Y(7);Y(8);Y(9)]) graphe2 medge2Max) @ (strongComponentsEdges graphe2 (strongComponents graphe2 medge2Max)));;
